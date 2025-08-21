@@ -6,7 +6,7 @@ load_dotenv(os.path.join(basedir, '.env'))
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'your-very-secret-key-123')
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql://postgres:1234@localhost/degree_verification')
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', '').replace('postgres://', 'postgresql://')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     ADMIN_USERNAMES = ['admin1', 'admin2', 'admin3']
     BLOCKCHAIN_DIFFICULTY = 0
