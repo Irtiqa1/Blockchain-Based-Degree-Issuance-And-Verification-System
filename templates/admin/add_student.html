@@ -56,20 +56,18 @@
                             </div>
                         </div>
 
-                        <!-- Email Field -->
+                        <!-- Email Field - Simplified Validation -->
                         <div class="mb-4 form-floating">
                             <input type="email" class="form-control form-control-lg" name="email" id="email" 
-                                   required pattern="^[A-Z][a-zA-Z0-9]{7,}@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$"
-                                   title="Email must start with capital letter, be at least 8 chars, and contain numbers"
-                                   placeholder="Student123@university.edu">
+                                   required placeholder="student@university.edu">
                             <label for="email" class="fw-semibold">
                                 <i class="fas fa-envelope me-2"></i>Email Address
                             </label>
                             <div class="invalid-feedback">
-                                Email must start with capital letter, be at least 8 chars, and contain numbers
+                                Please provide a valid email address
                             </div>
                             <div class="form-text text-muted">
-                                Format: Capital first letter, min 8 chars with numbers (e.g. Student123@university.edu)
+                                Example: student@university.edu
                             </div>
                         </div>
 
@@ -120,7 +118,7 @@
                                 </div>
                                 <div>
                                     <h6 class="mb-1">Email</h6>
-                                    <p class="small text-muted mb-0">Capital first letter, min 8 chars with numbers</p>
+                                    <p class="small text-muted mb-0">Valid email address format</p>
                                 </div>
                             </div>
                         </div>
@@ -240,8 +238,9 @@
                 alert("Full name must start with capital letters and contain only letters.");
                 return false;
             }
-            if (!/^[A-Z][a-zA-Z0-9]{7,}@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$/.test(email)) {
-                alert("Email must start with capital letter, be at least 8 chars, and contain numbers.");
+            // Simplified email validation
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                alert("Please provide a valid email address.");
                 return false;
             }
             return true;

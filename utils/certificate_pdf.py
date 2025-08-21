@@ -10,7 +10,7 @@ from my_models import db
 from my_models.approval import Approval
 from my_models.admin import Admin
 from my_models.blockchain import Block
-from my_models.student import Student  # Make sure this is imported
+from my_models.student import Student  
 
 
 import json
