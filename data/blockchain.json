@@ -1,50 +1,35 @@
 [
     {
         "index": 0,
-        "previous_hash": "0000000000000000000000000000000000000000000000000000000000000000",
-        "timestamp": "2025-08-01T07:10:59.635250",
+        "previous_hash": "0",
+        "timestamp": "2025-01-01T00:00:00",
         "data": {
-            "created_at": "2025-07-31T19:10:59.634926",
+            "created_at": "2025-01-01T00:00:00",
             "degree_name": "Genesis Degree",
             "field_of_study": "Genesis Block",
             "id": 0,
-            "institution": "Blockchain Authority",
+            "institution": "Blckchain Authority",
+            "message": "This is the Genesis Block",
             "student_id": "0000",
             "year_awarded": 2024
         },
         "nonce": 0,
-        "hash": "7a7547143c31d83c11ff62634c788c8b1e6d5e23c92334149b4a2f6da567e4c7"
+        "hash": "21cfbcffdddfde0c910a5780dfb61d134339b7da3412dfc0b1d5f364adf153d7bdc2"
     },
     {
         "index": 1,
-        "previous_hash": "7a7547143c31d83c11ff62634c788c8b1e6d5e23c92334149b4a2f6da567e4c7",
-        "timestamp": "2025-08-01T07:19:08.520175",
+        "previous_hash": "621cfbcfde0c910a5780dfb61d134339b7da3412dfc0b1d5f364adf153d7bdc2",
+        "timestamp": "2025-08-23T15:16:12",
         "data": {
-            "created_at": "2025-07-31T19:14:13.690504",
-            "degree_name": "IMBA",
-            "field_of_study": "Department of Management",
-            "id": 5,
-            "institution": "University of Kashmir South Campus",
-            "student_id": "23045112098",
-            "year_awarded": 2024
+            "created_at": "2025-08-23T15:16:12",
+            "degree_name": "MCA",
+            "field_of_study": "Department of Computer Science",
+            "id": 2,
+            "institution": "University of Kashmir Campus",
+            "student_id": "23045112011",
+            "year_awarded": 2025
         },
         "nonce": 0,
-        "hash": "3da36764275501be9875ecb9d886f204a763eb844b074f1e99391c1ea5024ba1"
-    },
-    {
-        "index": 2,
-        "previous_hash": "3da36764275501be9875ecb9d886f204a763eb844b074f1e99391c1ea5024ba1",
-        "timestamp": "2025-08-20T16:01:23.367468",
-        "data": {
-            "created_at": "2025-08-20T04:00:24.721744",
-            "degree_name": "PG Zoology",
-            "field_of_study": "Department of Zoology",
-            "id": 6,
-            "institution": "University of Kashmir North Campus",
-            "student_id": "23045112098",
-            "year_awarded": 2024
-        },
-        "nonce": 0,
-        "hash": "604a976492ca36d8d82cffe2e41db203585c88950cb8abde0c38ffe10c2eade3"
+        "hash": "b74861dc6149e63af4d571b2b8a150922634bndc06ec0ef1845a7e6d4de636dba"
     }
 ]

@@ -7,110 +7,83 @@ import json
 from my_models import Student
 from flask import current_app
 import os
+from utils.blockchain_utils import utcnow_iso, format_timestamp
+
+def utcnow_iso():
+    return datetime.utcnow().replace(microsecond=0).isoformat()
 
 class BlockchainController:
     VALID_ADMIN_USERNAMES = ['admin1', 'admin2', 'admin3']
-
-class BlockchainController:
+    
     @staticmethod
     def initialize_blockchain():
-    # 🔧 Set up file path
+        # 🔧 Set up file path
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        blockchain_file = os.path.join(base_dir, 'data', 'blockchain.json')
-        os.makedirs(os.path.dirname(blockchain_file), exist_ok=True)
+        json_path = current_app.config.get('JSON_STORAGE_PATH') if hasattr(current_app, 'config') else None
+        if not json_path:
+            json_path = os.path.join(base_dir, 'data', 'blockchain.json')
+        os.makedirs(os.path.dirname(json_path), exist_ok=True)
 
-    # ✅ First, check DB: if already initialized, skip
+        # ✅ First, check DB: if already initialized, skip
         if Block.query.count() > 0:
             print("🔁 Blockchain already initialized in database.")
-        else:
-            print("🧱 Creating genesis block in database...")
-            genesis_student = Student(
-                student_id='GENESIS_STUDENT',
-                full_name='Genesis Student',
-                email='genesis@example.com',
-                password_hash=generate_password_hash('secure_password')
-            )
-            db.session.add(genesis_student)
-            db.session.commit() 
-            # First create a default degree record for the genesis block
-            default_degree = Degree(
-                 degree_name='Genesis Degree',
-                 student_id='GENESIS_STUDENT',
-                 institution='Blockchain Authority',
-                 field_of_study='Genesis Block',
-                 year_awarded=2025,
-                 created_at=datetime.utcnow()
-            )
-            db.session.add(default_degree)
-            db.session.flush()  # This assigns an ID without committing
-            genesis_data = {
-                'id': 0,
-                'student_id': '0000',
-                'degree_name': 'Genesis Degree',
-                'institution': 'Blockchain Authority',
-                'year_awarded': 2024,
-                'field_of_study': 'Genesis Block',
-                'created_at': datetime.now().isoformat()
-           }
-            sorted_data = json.loads(json.dumps(genesis_data, sort_keys=True))
-            genesis_hash = calculate_hash(
-            0, "0" * 64, "2024-01-01T00:00:00", sorted_data, 0
-            )
+            return
 
-            genesis_block = Block(
-                previous_hash="0" * 64,
-                current_hash=genesis_hash,
-                degree_id=default_degree.id,# Use the default degree's ID 
-                timestamp=datetime.utcnow(),
-                nonce=0,
-                approved=True
-            )
-            db.session.add(genesis_block)
-            db.session.commit()
-            print("✅ Genesis block added to database.")
+        print("🧱 Creating genesis block in DB + JSON...")
 
-    # ✅ Then check JSON file
-        if os.path.exists(blockchain_file):
-            try:
-                with open(blockchain_file, 'r') as f:
-                    blockchain = json.load(f)
-                    if blockchain:
-                       print("🔁 Blockchain already initialized in file.")
-                       return
-            except json.JSONDecodeError:
-                print("⚠️ Corrupt blockchain file. Re-initializing.")
-                blockchain = []
-        else:
-            blockchain = []
-
-    # ✅ Add genesis block to file
-        file_genesis_data = {
-            'id': 0,
-            'student_id': '0000',
-            'degree_name': 'Genesis Degree',
-            'institution': 'Blockchain Authority',
-            'year_awarded': 2024,
-            'field_of_study': 'Genesis Block',
-            'created_at': datetime.now().isoformat()
-        }
-
-        sorted_file_data = json.loads(json.dumps(file_genesis_data, sort_keys=True))
-        file_block = {
-            'index': 0,
-            'previous_hash': "0" * 64,
-            'timestamp': datetime.utcnow().isoformat(),
-            'data': sorted_file_data,
-            'nonce': 0
-        }
-        file_block['hash'] = calculate_hash(
-           file_block['index'], file_block['previous_hash'],
-           file_block['timestamp'], file_block['data'], file_block['nonce']
+        # Genesis student
+        genesis_student = Student(
+            student_id='GENESIS_STUDENT',
+            full_name='Genesis Student',
+            email='genesis@example.com',
+            password_hash=generate_password_hash('secure_password')
         )
+        db.session.add(genesis_student)
+        db.session.commit()
 
-        with open(blockchain_file, 'w') as f:
-            json.dump([file_block], f, indent=4)
+        # Genesis degree
+        genesis_degree = Degree(
+            degree_name='Genesis Degree',
+            student_id='GENESIS_STUDENT',
+            institution='Blockchain Authority',
+            field_of_study='Genesis Block',
+            year_awarded=2025,
+            created_at=utcnow_iso()
+        )
+        db.session.add(genesis_degree)
+        db.session.flush()  # just get id
 
-        print("✅ Blockchain initialized in blockchain.json.")
+        # ✅ Build genesis block with BlockchainUtils
+        block_obj = BlockchainUtils.create_genesis_block()
+        
+        # Save to DB — convert timestamp string -> datetime
+        try:
+            ts_dt = datetime.fromisoformat(block_obj["timestamp"])
+        except Exception:
+            # fallback: parse without 'T' -> attempt replace
+            try:
+                ts_dt = datetime.fromisoformat(block_obj["timestamp"].replace(' ', 'T'))
+            except Exception:
+                # last resort: use current UTC truncated
+                ts_dt = datetime.utcnow().replace(microsecond=0)
+
+        # Save in DB
+        genesis_block = Block(
+            previous_hash=block_obj.get("previous_hash"),
+            current_hash=block_obj.get("hash"),
+            degree_id=genesis_degree.id,
+            timestamp=ts_dt,
+            nonce=block_obj.get("nonce", 0),
+            approved=True
+        )
+        db.session.add(genesis_block)
+        db.session.commit()
+
+        # Save same block to JSON file
+        with open(json_path, 'w') as f:
+            json.dump([block_obj], f, indent=4)
+
+        print("✅ Genesis block added to DB + JSON (consistent).")
 
     @staticmethod
     def add_degree_to_blockchain(degree_id):
@@ -128,28 +101,50 @@ class BlockchainController:
 
         # Prepare degree data
         degree_data = {
-            'id': degree.id,
-            'student_id': degree.student_id,
+            'id': int(degree.id),
+            'student_id': str(degree.student_id),
             'degree_name': degree.degree_name,
             'institution': degree.institution,
-            'year_awarded': degree.year_awarded,
+            'year_awarded': int(degree.year_awarded),
             'field_of_study': degree.field_of_study,
-            'created_at': degree.created_at.isoformat()
+            'created_at': format_timestamp(degree.created_at)
         }
+        ts = utcnow_iso()
 
-        
+        # ✅ Get the correct next index from JSON chain
+        json_chain = BlockchainController.get_blockchain()
+        if json_chain:
+            next_index = json_chain[-1]['index'] + 1
+        else:
+            next_index = 1  # After genesis block (index 0)
+
+        # ✅ First generate block with default index
         new_block_data = BlockchainUtils.generate_block(last_block, degree_data)
+        
+        # ✅ Then manually update the index to ensure sequential ordering
+        new_block_data['index'] = next_index
+        
+        # ✅ Recalculate hash with correct index
+        new_block_data['hash'] = calculate_hash(
+            next_index,
+            new_block_data['previous_hash'],
+            new_block_data['timestamp'],
+            new_block_data['data'],
+            new_block_data['nonce']
+        )
 
         # Prevent tampering by checking hash linkage
         if new_block_data['previous_hash'] != last_block.current_hash:
             return False, "Hash mismatch: rejecting block"
 
         # Create and store new block
+        db_ts = datetime.fromisoformat(new_block_data['timestamp'])
+
         new_block = Block(
             previous_hash=new_block_data['previous_hash'],
             current_hash=new_block_data['hash'],
             degree_id=degree.id,
-            timestamp=datetime.utcnow(),
+            timestamp=db_ts,
             nonce=new_block_data['nonce'],
             approved=False
         )
@@ -223,59 +218,77 @@ class BlockchainController:
 
         last_block = chain[-1]
         return block.previous_hash == last_block['hash']
+    
     @staticmethod
     def _add_to_json_blockchain(block):
-        from my_models.degree import Degree  # safe import
-
         base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        blockchain_file = os.path.join(base_dir, 'data', 'blockchain.json')
+        blockchain_file = current_app.config.get('JSON_STORAGE_PATH') or os.path.join(base_dir, 'data', 'blockchain.json')
 
         degree = Degree.query.get(block.degree_id)
         if not degree:
             print(f"❌ Degree not found for ID: {block.degree_id}")
             return
 
+        # Load existing chain or create new one with genesis block
         if os.path.exists(blockchain_file):
             with open(blockchain_file, 'r') as f:
-                blockchain = json.load(f)
+                try:
+                    blockchain = json.load(f)
+                except json.JSONDecodeError:
+                    print("❌ JSON file corrupted, creating new blockchain")
+                    blockchain = []
+            
+            # Ensure genesis block exists and is valid
+            if not blockchain or blockchain[0].get('index') != 0:
+                genesis_block = BlockchainUtils.create_genesis_block()
+                blockchain = [genesis_block]
         else:
-            print("❌ Blockchain not initialized or file missing.")
-            return
+            # Create new blockchain with genesis block
+            genesis_block = BlockchainUtils.create_genesis_block()
+            blockchain = [genesis_block]
 
-        index = len(blockchain)
-        previous_hash = blockchain[-1]["hash"] if blockchain else "0" * 64
-        timestamp = datetime.utcnow().isoformat()
-        nonce = 0
+        # ✅ CRITICAL FIX: Use sequential indexing, not database ID
+        # Find the correct index for the new block (should be previous index + 1)
+        if blockchain:
+            last_index = blockchain[-1]['index']
+            new_index = last_index + 1
+        else:
+            new_index = 0
 
-        data_dict = {
-            'id': degree.id,
-            'student_id': degree.student_id,
+        # Prepare block data
+        ts = format_timestamp(block.timestamp)
+        degree_data = {
+            'id': int(degree.id),
+            'student_id': str(degree.student_id),
             'degree_name': degree.degree_name,
             'institution': degree.institution,
-            'year_awarded': degree.year_awarded,
+            'year_awarded': int(degree.year_awarded),
             'field_of_study': degree.field_of_study,
-            'created_at': degree.created_at.isoformat()
+            'created_at': format_timestamp(degree.created_at)
         }
 
-        sorted_data = json.loads(json.dumps(data_dict, sort_keys=True))
-        block_hash = calculate_hash(index, previous_hash, timestamp, sorted_data, nonce)
+        # ✅ Use sequential index, not database ID
+        new_block = BlockchainUtils.build_block(
+            index=new_index,  # Use sequential index, not block.id
+            previous_hash=str(block.previous_hash),
+            timestamp=ts,
+            data=degree_data,
+            nonce=int(block.nonce)
+        )
 
-        new_block = {
-            "index": index,
-            "previous_hash": previous_hash,
-            "timestamp": timestamp,
-            "data": sorted_data,
-            "nonce": nonce,
-            "hash": block_hash
-        }
+        # ✅ Validate the new block's hash matches the expected hash
+        if new_block['hash'] != block.current_hash:
+            print(f"❌ Hash mismatch! Expected: {block.current_hash}, Got: {new_block['hash']}")
+            return
 
+        # Add new block to the chain
         blockchain.append(new_block)
 
+        # Save the complete chain
         with open(blockchain_file, 'w') as f:
-           json.dump(blockchain, f, indent=4)
+            json.dump(blockchain, f, indent=4)
 
-        print("✅ Block successfully written to blockchain.json")
-
+        print(f"✅ Block {new_index} successfully written to blockchain.json")
 
     @staticmethod
     def verify_degree(identifier):
@@ -291,9 +304,9 @@ class BlockchainController:
                 return False, "Blockchain file corrupted."
    
         for block in blockchain:
-        # Either search by hash or by degree id (convert string to int if needed)
+            # Either search by hash or by degree id (convert string to int if needed)
             if block['hash'] == identifier or str(block['data'].get('id')) == identifier:
-            # ✅ Recalculate the hash to check tampering
+                # ✅ Recalculate the hash to check tampering
                 sorted_data = json.loads(json.dumps(block['data'], sort_keys=True))
 
                 recalculated_hash = calculate_hash(
@@ -307,7 +320,7 @@ class BlockchainController:
                 if recalculated_hash != block['hash']:
                      return False, "Block has been tampered with and is invalid"
 
-            # ✅ Pull the correct values to display
+                # ✅ Pull the correct values to display
                 return True, {
                     'degree_id': block['data'].get('id'),
                     'student_id': block['data'].get('student_id'),
@@ -321,8 +334,6 @@ class BlockchainController:
 
         return False, "Hash or Degree ID not found in blockchain."
    
-
-
     @staticmethod
     def _verify_by_degree_id(degree_id):
         block = Block.query.filter_by(degree_id=degree_id, approved=True).first()
@@ -352,7 +363,8 @@ class BlockchainController:
         degree = block.degree
         if not degree:
             return False, "Degree details not found"
-       # 🔄 Ensure consistent ordering for hashing
+        
+        # 🔄 Ensure consistent ordering for hashing
         sorted_data = json.loads(json.dumps(block_data['data'], sort_keys=True))
 
         recalculated_hash = calculate_hash(
@@ -374,7 +386,6 @@ class BlockchainController:
         print("📦 BLOCK FROM JSON")
         print(json.dumps(block_data, indent=2))
 
- 
         if recalculated_hash != block_data['hash']:
             return False, "Block has been tampered with and is invalid"
 
